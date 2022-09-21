@@ -18,6 +18,8 @@ from selenium.webdriver.common.by import By
 from tqdm import tqdm
 import random
 import requests
+from statistics import median, mean
+import math
 
 
 class ScrapingDataService:
@@ -65,17 +67,16 @@ class ScrapingDataService:
 
         car_overview_list = []
 
-        for i, car in enumerate(tqdm(all_car_url_by_light_car)):
-            if i < 3:
-                url = BASE_URL + car.find('a').get('href')
-                title = car.find_all(
-                    'p', attrs={'class': 'title'})[0].get_text()
-                manufacturer = car.find_all(
-                    'p', attrs={'class': 'manufacturer'})[0].get_text()
+        for i, car in enumerate(all_car_url_by_light_car):
+            url = BASE_URL + car.find('a').get('href')
+            title = car.find_all(
+                'p', attrs={'class': 'title'})[0].get_text()
+            manufacturer = car.find_all(
+                'p', attrs={'class': 'manufacturer'})[0].get_text()
 
-                car_overview_list.append(
-                    {'url': url, 'car_name': title, 'car_maker': manufacturer}
-                )
+            car_overview_list.append(
+                {'url': url, 'car_name': title, 'car_maker': manufacturer}
+            )
 
         return car_overview_list
 
@@ -86,46 +87,54 @@ class ScrapingDataService:
         all_car_list_by_year = {}
         # 全車の全年式を取得
         for i, car_overview in enumerate(tqdm(car_overview_list)):
-            if i < 3:
-                car_details_req = self.init_BeautifulSoup(
-                    url=car_overview['url']
-                )
-                all_years = car_details_req.find(
-                    'ul', attrs={'class': 'page-links js-page-scroll'}
-                )
-                year_urls = all_years.find_all('a')
-                car_list_by_year = []
-                for i, year in enumerate(year_urls):
-                    year_text = str(year.get_text())
-                    year_num = int(year_text.replace('年', ''))
-                    if year_num >= 2006 and year_num <= 2021:
-                        year_url = BASE_URL+year.get('href')
-                        car_list_by_year.append(
-                            {
-                                'year_text': year_text,
-                                'car_maker': car_overview['car_maker'],
-                                'url': year_url
-                            }
-                        )
+            car_details_req = self.init_BeautifulSoup(
+                url=car_overview['url']
+            )
+            all_years = car_details_req.find(
+                'ul', attrs={'class': 'page-links js-page-scroll'}
+            )
+            year_urls = all_years.find_all('a')
+            car_list_by_year = []
 
-                all_car_list_by_year[car_overview['car_name']
-                                     ] = car_list_by_year
+            car_name = car_overview['car_name']
+
+            for i, year in enumerate(year_urls):
+                year_text = str(year.get_text())
+                year_num = int(year_text.replace('年', ''))
+                if year_num >= 2006:  # and year_num <= 2021:
+                    year_url = BASE_URL+year.get('href')
+                    car_list_by_year.append(
+                        {
+                            'year_text': year_text,
+                            'car_maker': car_overview['car_maker'],
+                            'url': year_url
+                        }
+                    )
+
+            all_car_list_by_year[car_overview['car_name']
+                                 ] = car_list_by_year
 
         return all_car_list_by_year
 
     def get_car_grade(self, car_list_by_year: Dict):
         grade_list_by_all_year = []
+
         for i, car_years in enumerate(tqdm(car_list_by_year.values())):
             car_name = list(car_list_by_year.keys())[i]
             # 年ごとのリストを作成
             grade_dict_by_year = {}
             for j, car_year in enumerate(car_years):
-                if j < 3:
-                    # 月ごとのリストが入っている
-                    most_high_grade_month_list = ScrapingDataService.get_most_high_price_grade(
-                        self, url=car_year['url'], car_maker=car_year['car_maker']
+                # 月ごとのリストが入っている
+                most_high_grade_month_dict = ScrapingDataService.get_most_high_price_grade(
+                    self, url=car_year['url'], car_maker=car_year['car_maker']
+                )
+                if car_name in grade_dict_by_year:
+                    grade_dict_by_year[car_name].update(
+                        most_high_grade_month_dict
                     )
-                    grade_dict_by_year[car_name] = most_high_grade_month_list
+                else:
+                    grade_dict_by_year[car_name] = most_high_grade_month_dict
+
             grade_list_by_all_year.append(grade_dict_by_year)
         return grade_list_by_all_year
 
@@ -133,7 +142,9 @@ class ScrapingDataService:
         car_grade_req = ScrapingDataService.init_BeautifulSoup(self, url=url)
 
         year_month_html_list = car_grade_req.find_all('h2')
-        year_month_html_list.pop()
+        if len(list(year_month_html_list)) > 2:
+            # print(f'yar_month_list_length: ${len(list(year_month_html_list))}')
+            year_month_html_list.pop()
 
         tables = car_grade_req.find_all('table')
         grade_list_by_table = []
@@ -162,9 +173,17 @@ class ScrapingDataService:
         for i, column_dict in enumerate(grade_list_by_table):
             all_grade_list_by_month = []
             price_list_by_month = []
+
+            if len(year_month_list) == 0:
+                print('url', url)
+                print('tables', tables)
+                print('0_year_month_list', year_month_list)
+                print('column_dict', column_dict)
+
+            # print('year_month_list', year_month_list)
             for j, _ in enumerate(column_dict['grade_name_list']):
-                price = int(column_dict['price_list']
-                            [j].get_text()[:-1].replace(',', ''))
+                price = int(
+                    column_dict['price_list'][j].get_text()[:-1].replace(',', ''))
                 grade_dict = {
                     'year_month': year_month_list[i],
                     'car_maker': car_maker,
@@ -179,8 +198,19 @@ class ScrapingDataService:
                 price_list_by_month.append(price)
 
             all_grade_list_by_year.append(all_grade_list_by_month)
+
+            # ここで値段の最大値を取得している
+            choiced_val = self.choice_max_price_in_grades(
+                price_list_by_month=price_list_by_month
+            )
+
+            # ここで中央値-平均で一番近い値を取得している
+            # choiced_val = self.choice_near_median_price_in_grades(
+            #     price_list_by_month=price_list_by_month
+            # )
+
             max_price_idx_list_by_year.append(
-                price_list_by_month.index(max(price_list_by_month))
+                price_list_by_month.index(choiced_val)
             )
 
         max_price_column_dicts = {}
@@ -191,6 +221,26 @@ class ScrapingDataService:
                                    ] = max_price_column_dict
 
         return max_price_column_dicts
+
+    def choice_max_price_in_grades(self, price_list_by_month: list):
+        return max(price_list_by_month)
+
+    def choice_near_median_price_in_grades(self, price_list_by_month: list):
+        price_list_by_month_len = len(price_list_by_month)
+        price_list_by_month_smaller_med = math.floor(
+            price_list_by_month_len / 2
+        )-1
+        price_list_by_month_higher_med = price_list_by_month_smaller_med+1
+        mea = mean(price_list_by_month)
+        med = median(price_list_by_month)
+        smaller_val = price_list_by_month[price_list_by_month_smaller_med]-mea
+        higher_val = price_list_by_month[price_list_by_month_higher_med]-mea
+        if higher_val < smaller_val:
+            med = price_list_by_month[price_list_by_month_higher_med]
+        else:
+            med = price_list_by_month[price_list_by_month_smaller_med]
+
+        return med
 
     def get_light_car_details(self, grade_list_by_all_year):
         all_details_list = []
@@ -221,11 +271,11 @@ class ScrapingDataService:
                                     car_details_title.append(val)
                                 isFetchTitle = not isFetchTitle
 
-                    nature_necessary_titles = OpenPyxlConstants.nature_necessary_titles
+                    kNature_necessary_titles = OpenPyxlConstants.nature_necessary_titles
                     title_idx_list = []
-                    # TODO: titleの一致がミスっている　
+
                     for i, title in enumerate(car_details_title):
-                        for j, nature_necessary_title in enumerate(nature_necessary_titles):
+                        for j, nature_necessary_title in enumerate(kNature_necessary_titles):
                             if title == nature_necessary_title:
                                 title_idx_list.append(i)
 
@@ -238,9 +288,9 @@ class ScrapingDataService:
                     month = column_dict['year_month'][4:]
 
                     # all_length_list: ['全長','全幅','全高']
-                    all_length_list = str(
-                        new_car_details_value[6]
-                    )[:-2].split('×')
+                    all_length_list = str(new_car_details_value[6])[
+                        :-2].split('×')
+
                     car_size = int(all_length_list[0]) * \
                         int(all_length_list[1]) * \
                         int(all_length_list[2]) / 10 ** 9
@@ -269,11 +319,11 @@ class ScrapingDataService:
                         'トランスミッション': column_dict['driven'],
                         '乗車定員': new_car_details_value[2],
                         'ハイブリット': '',
-                        # 以下から修正↓
                         '最高出力(kW)': new_car_details_value[11],
-                        '燃費(WLTC)': new_car_details_value[12],
-                        '燃費(JC08)': new_car_details_value[12],
-                        '燃費(10.15)': new_car_details_value[12],
+                        '過給器': new_car_details_value[12],
+                        '燃費(WLTC)': new_car_details_value[13],
+                        '燃費(JC08)': new_car_details_value[13],
+                        '燃費(10.15)': new_car_details_value[13],
                         '全長': all_length_list[0],
                         '全幅': all_length_list[1],
                         '全高': all_length_list[2],

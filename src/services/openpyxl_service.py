@@ -44,8 +44,9 @@ class OpenpyxlService:
 
     def add_data_in_sheet(self, light_car_detail_dict: dict):
         for i, light_car_detail in enumerate(light_car_detail_dict.values()):
-            self.sheet.cell(row=self.max_row,
-                            column=i+1).value = light_car_detail
+            self.sheet.cell(
+                row=self.max_row, column=i + 1
+            ).value = light_car_detail
 
         self.add_max_row()
         self.save_sheet()
