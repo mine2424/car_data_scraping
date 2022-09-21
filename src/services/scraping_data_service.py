@@ -1,4 +1,5 @@
 
+from turtle import color
 from typing import Dict, List
 from constants.constants import BASE_URL
 from constants.openpyxl_constants import OpenPyxlConstants
@@ -59,7 +60,8 @@ class ScrapingDataService:
         """
 
         init_req = self.init_BeautifulSoup(
-            'https://autos.goo.ne.jp/catalog/type/kei/',
+            # 'https://autos.goo.ne.jp/catalog/type/kei/',
+            'https://autos.goo.ne.jp/catalog/type/keirv/',
         )
         all_car_url_by_light_car = init_req.find_all(
             'div', attrs={'class': 'item'},
@@ -142,9 +144,9 @@ class ScrapingDataService:
         car_grade_req = ScrapingDataService.init_BeautifulSoup(self, url=url)
 
         year_month_html_list = car_grade_req.find_all('h2')
-        if len(list(year_month_html_list)) > 2:
-            # print(f'yar_month_list_length: ${len(list(year_month_html_list))}')
-            year_month_html_list.pop()
+        # if len(list(year_month_html_list)) > 2:
+        # print(f'yar_month_list_length: ${len(list(year_month_html_list))}')
+        # year_month_html_list.pop()
 
         tables = car_grade_req.find_all('table')
         grade_list_by_table = []
@@ -159,6 +161,7 @@ class ScrapingDataService:
             grade_list_by_table.append(column_dict)
 
         year_month_list = []
+        # print('year_month_html_list', year_month_html_list)
         for i, year_month in enumerate(year_month_html_list):
             year_month_text = year_month.get_text()
 
@@ -180,7 +183,12 @@ class ScrapingDataService:
                 print('0_year_month_list', year_month_list)
                 print('column_dict', column_dict)
 
-            # print('year_month_list', year_month_list)
+            # print(f'url: {url}')
+            # print(f'i: {i}, year_month_list: {year_month_list}')
+            # print('column_dict', column_dict)
+            # print(' ')
+            # print(' ')
+            # TODO: len(year_month_list) < iなら？？？
             for j, _ in enumerate(column_dict['grade_name_list']):
                 price = int(
                     column_dict['price_list'][j].get_text()[:-1].replace(',', ''))
@@ -200,14 +208,14 @@ class ScrapingDataService:
             all_grade_list_by_year.append(all_grade_list_by_month)
 
             # ここで値段の最大値を取得している
-            choiced_val = self.choice_max_price_in_grades(
-                price_list_by_month=price_list_by_month
-            )
-
-            # ここで中央値-平均で一番近い値を取得している
-            # choiced_val = self.choice_near_median_price_in_grades(
+            # choiced_val = self.choice_max_price_in_grades(
             #     price_list_by_month=price_list_by_month
             # )
+
+            # ここで中央値-平均で一番近い値を取得している
+            choiced_val = self.choice_near_median_price_in_grades(
+                price_list_by_month=price_list_by_month
+            )
 
             max_price_idx_list_by_year.append(
                 price_list_by_month.index(choiced_val)
@@ -257,13 +265,28 @@ class ScrapingDataService:
                     car_details_title = []
                     car_details_value = []
                     isFetchTitle = False
+                    normal_color_count = 0
+                    option_color_count = 0
 
                     # constantsにあるtitleを元に削っていく
                     # car_details_titleとnature_necessary_titlesで一致した値があったらcar_details_titleのidxを返す
                     # そのidxを元にcar_details_titleとcar_details_valueの値を返す
                     for y, table in enumerate(all_tables):
+                        if y == len(all_tables)-1:
+                            table_td = table.find_all('td')
+                            for t, val in enumerate(table_td):
+                                t = t + 1
+                                val = val.get_text()
+                                if t % 2 == 0:
+                                    if val.isspace() == False:
+                                        option_color_count = option_color_count+1
+                                else:
+                                    if val.isspace() == False:
+                                        normal_color_count = normal_color_count+1
+
                         if len(all_tables) != y:
                             striped_table = table.get_text().split()
+
                             for val in striped_table:
                                 if isFetchTitle:
                                     car_details_value.append(val)
@@ -274,6 +297,7 @@ class ScrapingDataService:
                     kNature_necessary_titles = OpenPyxlConstants.nature_necessary_titles
                     title_idx_list = []
 
+                    # 色以外のtitle indexを取得
                     for i, title in enumerate(car_details_title):
                         for j, nature_necessary_title in enumerate(kNature_necessary_titles):
                             if title == nature_necessary_title:
@@ -320,6 +344,8 @@ class ScrapingDataService:
                         '乗車定員': new_car_details_value[2],
                         'ハイブリット': '',
                         '最高出力(kW)': new_car_details_value[11],
+                        'メーカー標準ボディカラー': normal_color_count,
+                        'メーカーオプションボディカラー': option_color_count,
                         '過給器': new_car_details_value[12],
                         '燃費(WLTC)': new_car_details_value[13],
                         '燃費(JC08)': new_car_details_value[13],

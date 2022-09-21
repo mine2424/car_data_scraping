@@ -49,7 +49,9 @@ def main():
 
     random_seconds = random.uniform(0.234, 1.000)
     # openpyxl_service.init_openpyxl(fileName='all_light_car_data_by_median')
-    openpyxl_service.init_openpyxl(fileName='all_light_car_data_by_max')
+    # openpyxl_service.init_openpyxl(fileName='all_light_car_data_by_max')
+    # openpyxl_service.init_openpyxl(fileName='all_light_rv_car_data_by_max')
+    openpyxl_service.init_openpyxl(fileName='all_light_rv_car_data_by_median')
 
     openpyxl_service.create_title()
 

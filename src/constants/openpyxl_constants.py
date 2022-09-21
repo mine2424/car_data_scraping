@@ -52,6 +52,7 @@ class OpenPyxlConstants:
         '車両重量': '',
     }
 
+    # headerに記入されるlist
     nature_necessary_titles = [
         '新車価格',
         'ボディタイプ',
