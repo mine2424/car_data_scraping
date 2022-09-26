@@ -1,5 +1,6 @@
 class OpenPyxlConstants:
 
+    # excel入力
     titles = [
         '年',
         '月',
