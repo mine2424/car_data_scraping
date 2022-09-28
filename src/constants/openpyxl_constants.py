@@ -30,6 +30,10 @@ class OpenPyxlConstants:
         '車両重量',
     ]
 
+    used_car_titles = [
+        ''
+    ]
+
     all_value_for_excel = {
         '年': '',
         '月': '',

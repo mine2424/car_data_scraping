@@ -42,6 +42,11 @@ class OpenpyxlService:
             self.sheet.cell(row=1, column=i+1).value = indexTitle
         self.save_sheet()
 
+    def create_used_car_title(self):
+        for i, indexTitle in enumerate(OpenPyxlConstants.used_car_titles):
+            self.sheet.cell(row=1, column=i+1).value = indexTitle
+        self.save_sheet()
+
     def add_data_in_sheet(self, light_car_detail_dict: dict):
         for i, light_car_detail in enumerate(light_car_detail_dict.values()):
             self.sheet.cell(

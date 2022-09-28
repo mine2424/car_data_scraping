@@ -176,9 +176,21 @@ def run_scraping_all_used_light_car_data():
         url='https://www.goo-net.com/usedcar/brand-MITSUBISHI/car-EK_WAGON/'
     )
 
-    scraping_data_service.get_detail_page_data(
+    all_detail_page_data = scraping_data_service.get_detail_page_data(
         detail_url=detail_page_url_list[0]
     )
+
+    print(all_detail_page_data)
+
+    # openpyxl_service.init_openpyxl(fileName='all_used_car_data_by_ek_wagon')
+
+    # openpyxl_service.create_title()
+
+    # for i, car_detail in enumerate(tqdm(all_detail_page_data)):
+
+    #     openpyxl_service.add_data_in_sheet(
+    #         light_car_detail_dict=car_detail
+    #     )
 
 
 if __name__ == '__main__':
