@@ -19,7 +19,6 @@ print('this is goo car scraping!!!')
 
 
 def main():
-    pass
     argv = int(sys.argv[1])
     if argv == 0:
         run_scraping_all_light_car_catalog_data()
@@ -68,9 +67,15 @@ def run_scraping_all_light_car_catalog_data():
     random_seconds = random.uniform(0.234, 1.000)
 
     # input excel name #
+    # openpyxl_service.init_openpyxl(fileName='all_light_car_data_by_all_grade')
+    openpyxl_service.init_openpyxl(
+        fileName='all_light_rv_car_data_by_all_grade'
+    )
+    #
     # openpyxl_service.init_openpyxl(fileName='all_filled_light_car_data_by_max')
     # openpyxl_service.init_openpyxl(fileName='all_light_car_data_by_max')
-    # openpyxl_service.init_openpyxl(fileName='all_light_rv_car_data_by_mmin')
+    # openpyxl_service.init_openpyxl(fileName='all_light_car_data_by_min')
+    # openpyxl_service.init_openpyxl(fileName='all_light_rv_car_data_by_min')
     # openpyxl_service.init_openpyxl(fileName='all_light_rv_car_data_by_max_2')
     #
     # openpyxl_service.init_openpyxl(fileName='all_compact_car_data_by_max')
@@ -165,6 +170,15 @@ def run_scraping_all_used_light_car_data():
     openpyxl_service = OpenpyxlService()
 
     # 中古車のデータを取得
+    # output: detail_page_url_list
+    detail_page_url_list = scraping_data_service.get_all_used_car_overview_url_list(
+        # url='https://www.goo-net.com/usedcar/bodytype-KEI/'
+        url='https://www.goo-net.com/usedcar/brand-MITSUBISHI/car-EK_WAGON/'
+    )
+
+    scraping_data_service.get_detail_page_data(
+        detail_url=detail_page_url_list[0]
+    )
 
 
 if __name__ == '__main__':
