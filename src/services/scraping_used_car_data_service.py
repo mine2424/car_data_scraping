@@ -2,8 +2,10 @@ from math import floor
 import random
 import time
 from typing import Type
+from xxlimited import new
 import requests
 from bs4 import BeautifulSoup
+from tqdm import tqdm
 
 
 class ScrapingUsedCarDataService:
@@ -33,10 +35,10 @@ class ScrapingUsedCarDataService:
         overview_url_list = [url]
 
         ### 本番用 ###
-        # overview_url_length = floor(all_count / 50)
+        overview_url_length = floor(all_count / 50)
 
         ### テスト用 ###
-        overview_url_length = 1
+        # overview_url_length = 3
 
         for i in range(overview_url_length):
             url_index = i + 2
@@ -44,13 +46,19 @@ class ScrapingUsedCarDataService:
             ### 全軽自動車取得用 ###
             # current_url = f'https://www.goo-net.com/usedcar/bodytype-KEI/index-{url_index}.html'
 
+            # ek-ワゴン
+            # ek-カスタム
+            # ek-クロス
+            # ek-スペース
+            # ek-スペースカスタム
+            # ek-クロススペース
             ### brand-MITSUBISHI/car-EK_WAGON only ###
             current_url = f'https://www.goo-net.com/usedcar/brand-MITSUBISHI/car-EK_WAGON/index-{url_index}.html'
 
             overview_url_list.append(current_url)
 
         detail_page_url_list = []
-        for overview_url in overview_url_list:
+        for overview_url in (tqdm(overview_url_list)):
             random_seconds = random.uniform(0.234, 1.000)
             time.sleep(random_seconds)
             cu_bs_res = ScrapingUsedCarDataService.init_BeautifulSoup(
@@ -77,7 +85,8 @@ class ScrapingUsedCarDataService:
         # find_allにて仮に該当のものがなかったら[]で返される　
 
         # 価格を取得
-        price_text_dict = self.get_price_text_dict(bs_res)
+        price_text_list = self.get_price_text_list(bs_res)
+        price_text_list.insert(0, detail_url)
 
         ### 車両詳細を取得 ###
         ### status_block_list: [0~2]は車両の基本情報, [3]以降が全てon offのやつ ###
@@ -85,31 +94,27 @@ class ScrapingUsedCarDataService:
 
         # アフターサービスを取得
         # data: {'補償': 1, '法定整備': 1}
-        after_service_dict = self.get_after_service_dict(bs_res=bs_res)
+        after_service_list = self.get_after_service_list(bs_res=bs_res)
 
         # goo鑑定を取得
         # data: {'外装': '4', '内装': '4', '機関': '正常', '修復歴': '無し'}
-        goo_kantei_hyouka_dict = self.get_goo_kantei_hyouka_dict(bs_res=bs_res)
+        goo_kantei_hyouka_list = self.get_goo_kantei_hyouka_list(bs_res=bs_res)
 
-        return [price_text_dict, status_block_list, after_service_dict, goo_kantei_hyouka_dict]
+        # return {'price_text_dict': price_text_dict, 'status_block_list': status_block_list, 'after_service_dict': after_service_dict, 'goo_kantei_hyouka_dict': goo_kantei_hyouka_dict}
+        return price_text_list + status_block_list + after_service_list + goo_kantei_hyouka_list
 
-    # 万円が入っていたら順番に取得(0->本体価格,1->支払総額)
-
-    def get_price_text_dict(self, bs_res: BeautifulSoup):
+    def get_price_text_list(self, bs_res: BeautifulSoup):
+        # 万円が入っていたら順番に取得(0->本体価格,1->支払総額)
         all_price_text_list = bs_res.find(
             'table', {'class': 'mainData'}
         ).get_text().split()
-        res_dict = {'body_price': '', 'paied_price': ''}
+        res_list = []
         isBodyPrice = False
         for price_text in all_price_text_list:
             if '万円' in price_text:
-                if isBodyPrice:
-                    res_dict['paied_price'] = price_text
-                else:
-                    res_dict['body_price'] = price_text
-                    isBodyPrice = not isBodyPrice
+                res_list.append(price_text)
 
-        return res_dict
+        return res_list
 
     def get_status_block_text(self, bs_res: BeautifulSoup):
         status_block_list_html = list(bs_res.find_all(
@@ -117,6 +122,9 @@ class ScrapingUsedCarDataService:
         )
         status_block_title = []
         status_block_list = []
+        status_block_val_dict = {
+            '走行距離': '', '走行距離': '', '登録済未使用車': '', '禁煙車': '', '車検': '', '年式（初度登録）': '', '排気量': '', '乗車定員': '', '駆動方式': '', '燃料': '', 'ドア': '', 'ミッション': '', '過給器': '', '車体色': '', '車台番号下3桁': '', 'その他仕様': '', '全体のサイズ': '', '荷台寸法': '', '全長×全幅×全高': '', '車両重量': '', '駆動形式': '', '使用燃料': '', '最高出力': '', 'WLTCモード燃費': '', 'JC08モード燃費': '', '10/15モード燃費': ''
+        }
         for i, status_block_html in enumerate(status_block_list_html):
             status_block = list(status_block_html.get_text().split())
             if i < 3:
@@ -126,22 +134,30 @@ class ScrapingUsedCarDataService:
                     item for item in status_block[1:] if '装備略号／用語解説' not in item and '※新車時のカタログデータとなります。実際とは異なる場合がございますので、詳細は販売店にご確認ください。'not in item and 'カタログで車種情報を詳しく見る' not in item
                 ]
 
-                # TODO: title valueを分ける
+                for j, status in enumerate(new_status_block):
+                    for status_title in status_block_val_dict:
+                        if status in status_title:
+                            status_block_val_dict[status_title] = new_status_block[j+1]
 
-                status_block_list.append(new_status_block)
-            else:
-                # status_list_html[3]以降が全てon offのやつ
-                # -> :があった場合は区切るようにする。:以降は消す
-                # -> これはそれぞれのstatusBlockで(on off4パターン)を頑張って切り分ける
+            # else:
+            #     # status_list_html[3]以降が全てon offのやつ
+            #     # -> :があった場合は区切るようにする。:以降は消す
+            #     # -> これはそれぞれのstatusBlockで(on off4パターン)を頑張って切り分ける
 
-                split_word = '：'
-                status_block_title.append(status_block[0])
-                li_list_res = status_block_html.find_all('li')
-                li_html_list = []
-                for li in li_list_res:
-                    li_html_list.append(li)
+            #     split_word = '：'
+            #     status_block_title.append(status_block[0])
+            #     li_list_res = status_block_html.find_all('li')
+            #     li_html_list = []
+            #     for li in li_list_res:
+            #         li_html_list.append(li)
 
-                status_block_list.append(li_html_list)
+            #     # HTML状態のliのvalueを対処する
+
+            #     status_block_list.append(li_html_list)
+
+        status_block_list = [
+            item for item in list(status_block_val_dict.values())
+        ]
 
         return status_block_list
 
@@ -151,7 +167,7 @@ class ScrapingUsedCarDataService:
         else:
             return default
 
-    def get_after_service_dict(self, bs_res: BeautifulSoup):
+    def get_after_service_list(self, bs_res: BeautifulSoup):
         # 補償の有無で判断(ダミー)、整備込みかどうか
         after_service_html = bs_res.find(
             'div', {'class': 'afterServiceBlock'}
@@ -167,12 +183,12 @@ class ScrapingUsedCarDataService:
         if self.my_index(l=after_service_list, x='整備込') == False:
             dummy_maintenance = 0
 
-        return {'補償': dummy_guarantee, '法定整備': dummy_maintenance}
+        return [dummy_guarantee, dummy_maintenance]
 
     # class: qualityInnetTitle, qualityRank1, qualityRank2を取得
     # 1,2はtableの段の違いで、
     # 外装: qualityRank1[0], 内装: qualityRank1[1], 機関: qualityRank2[0], 修復歴: qualityRank2[1]
-    def get_goo_kantei_hyouka_dict(self, bs_res: BeautifulSoup):
+    def get_goo_kantei_hyouka_list(self, bs_res: BeautifulSoup):
         goo_kantei_hyouka_html = bs_res.find(
             'div', {'class': 'gooKanteiHyoukaTable'}
         )
@@ -187,4 +203,4 @@ class ScrapingUsedCarDataService:
         )
         quality_rank_2_list = [item.get_text() for item in quality_rank_2_list]
 
-        return {'外装': quality_rank_1_list[0], '内装': quality_rank_1_list[1], '機関': quality_rank_2_list[0], '修復歴': quality_rank_2_list[1]}
+        return [quality_rank_1_list[0], quality_rank_1_list[1], quality_rank_2_list[0], quality_rank_2_list[1]]

@@ -176,21 +176,27 @@ def run_scraping_all_used_light_car_data():
         url='https://www.goo-net.com/usedcar/brand-MITSUBISHI/car-EK_WAGON/'
     )
 
-    all_detail_page_data = scraping_data_service.get_detail_page_data(
-        detail_url=detail_page_url_list[0]
-    )
+    all_detail_page_data = []
+    for i, detail_page_url in enumerate(tqdm(detail_page_url_list)):
+        # if i < 3:
+        random_seconds = random.uniform(0.234, 1.000)
+        time.sleep(random_seconds)
+        detail_page_data = scraping_data_service.get_detail_page_data(
+            detail_url=detail_page_url
+        )
+        all_detail_page_data.append(detail_page_data)
 
-    print(all_detail_page_data)
+    # print(detail_page_data)
 
-    # openpyxl_service.init_openpyxl(fileName='all_used_car_data_by_ek_wagon')
+    openpyxl_service.init_openpyxl(fileName='all_used_car_data_by_ek_wagon')
 
-    # openpyxl_service.create_title()
+    openpyxl_service.create_used_car_title()
 
-    # for i, car_detail in enumerate(tqdm(all_detail_page_data)):
+    for i, car_detail in enumerate(tqdm(all_detail_page_data)):
 
-    #     openpyxl_service.add_data_in_sheet(
-    #         light_car_detail_dict=car_detail
-    #     )
+        openpyxl_service.add_used_car_data_in_sheet(
+            val_list=car_detail
+        )
 
 
 if __name__ == '__main__':

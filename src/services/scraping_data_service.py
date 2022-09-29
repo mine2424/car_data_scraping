@@ -113,7 +113,7 @@ class ScrapingDataService:
             for i, year in enumerate(year_urls):
                 year_text = str(year.get_text())
                 year_num = int(year_text.replace('年', ''))
-                if year_num >= 2006:  # and year_num <= 2021:
+                if year_num >= 2006 and year_num <= 2021:
                     year_url = BASE_URL+year.get('href')
                     car_list_by_year.append(
                         {

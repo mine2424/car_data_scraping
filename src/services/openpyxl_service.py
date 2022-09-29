@@ -56,6 +56,15 @@ class OpenpyxlService:
         self.add_max_row()
         self.save_sheet()
 
+    def add_used_car_data_in_sheet(self, val_list: list):
+        for i, light_car_detail in enumerate(val_list):
+            self.sheet.cell(
+                row=self.max_row, column=i + 1
+            ).value = light_car_detail
+
+        self.add_max_row()
+        self.save_sheet()
+
     def remove_space_col(self):
         self.sheet.delete_cols(5)
         self.save_sheet()
