@@ -10,7 +10,6 @@ from services.openpyxl_service import OpenpyxlService
 from tqdm import tqdm
 import time
 import random
-import numpy as np
 import sys
 
 from services.scraping_used_car_data_service import ScrapingUsedCarDataService
@@ -22,8 +21,10 @@ def main():
     argv = int(sys.argv[1])
     if argv == 0:
         run_scraping_all_light_car_catalog_data()
-    else:
+    elif argv == 1:
         run_scraping_all_used_light_car_data()
+    elif argv == 2:
+        judge_cell_color()
 
 
 def run_scraping_all_light_car_catalog_data():
@@ -169,34 +170,79 @@ def run_scraping_all_used_light_car_data():
     scraping_data_service = ScrapingUsedCarDataService()
     openpyxl_service = OpenpyxlService()
 
-    # 中古車のデータを取得
+    ### 中古車のURLを取得する ###
     # output: detail_page_url_list
     detail_page_url_list = scraping_data_service.get_all_used_car_overview_url_list(
-        # url='https://www.goo-net.com/usedcar/bodytype-KEI/'
-        url='https://www.goo-net.com/usedcar/brand-MITSUBISHI/car-EK_WAGON/'
+        url='https://www.goo-net.com/usedcar/bodytype-KEI/'
+        # url='https://www.goo-net.com/usedcar/brand-MITSUBISHI/car-EK_WAGON/'
+        # url='https://www.goo-net.com/usedcar/brand-MITSUBISHI/car-EK_CUSTOM/'
+        # url='https://www.goo-net.com/usedcar/brand-MITSUBISHI/car-EK_X/'
+        # url='https://www.goo-net.com/usedcar/brand-MITSUBISHI/car-EK_SPACE/'
+        # url='https://www.goo-net.com/usedcar/brand-MITSUBISHI/car-EK_SPACE_CUSTOM/'
+        # url='https://www.goo-net.com/usedcar/brand-MITSUBISHI/car-EK_SPORT/'
     )
+
+    print('length', len(detail_page_url_list))
+
+    ### 詳細ページのデータを取得 ###
 
     all_detail_page_data = []
     for i, detail_page_url in enumerate(tqdm(detail_page_url_list)):
         # if i < 3:
-        random_seconds = random.uniform(0.234, 1.000)
+        random_seconds = random.uniform(0.001, 0.01)
         time.sleep(random_seconds)
         detail_page_data = scraping_data_service.get_detail_page_data(
             detail_url=detail_page_url
         )
         all_detail_page_data.append(detail_page_data)
 
-    # print(detail_page_data)
+    ### excelに書き込む ###
 
-    openpyxl_service.init_openpyxl(fileName='all_used_car_data_by_ek_wagon')
+    # openpyxl_service.init_openpyxl(fileName='all_used_car_data_by_ek_wagon')
+    # openpyxl_service.init_openpyxl(fileName='all_used_car_data_by_ek_custom')
+    # openpyxl_service.init_openpyxl(fileName='all_used_car_data_by_ek_custom_test')
+    # openpyxl_service.init_openpyxl(fileName='all_used_car_data_by_ek_x')
+    # openpyxl_service.init_openpyxl(fileName='all_used_car_data_by_ek_space')
+    # openpyxl_service.init_openpyxl(fileName='all_used_car_data_by_ek_space_custom')
+    # openpyxl_service.init_openpyxl(fileName='all_used_car_data_by_ek_space')
+    # openpyxl_service.init_openpyxl(fileName='all_used_car_data_by_ek_x_space')
+    # openpyxl_service.init_openpyxl(fileName='all_used_car_data_by_ek_sport')
+    openpyxl_service.init_openpyxl(fileName='all_used_light_car_data_2500')
 
     openpyxl_service.create_used_car_title()
 
-    for i, car_detail in enumerate(tqdm(all_detail_page_data)):
-
+    for car_detail in tqdm(all_detail_page_data):
         openpyxl_service.add_used_car_data_in_sheet(
             val_list=car_detail
         )
+
+
+def judge_cell_color():
+    openpyxl_service = OpenpyxlService()
+
+    sheet = openpyxl_service.openpyxl(
+        'f_all_light_rv_car_data_by_all_grade', 1
+    )
+
+    index_list = openpyxl_service.get_colored_cell_index_list()
+    openpyxl_service.get_max_row()
+    max_row = openpyxl_service.max_row
+    sheet.cell(row=1, column=28).value = 'price_median'
+
+    is_colored = False
+    for row in range(max_row):
+        row = row + 2
+        for idx in index_list:
+            if idx == row:
+                print('row colored', row)
+                openpyxl_service.add_data_in_exit_file(28, row, 1)
+                is_colored = True
+
+        if is_colored == False:
+            print('row not colored', row)
+            openpyxl_service.add_data_in_exit_file(28, row, 0)
+
+        is_colored = False
 
 
 if __name__ == '__main__':

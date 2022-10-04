@@ -2,7 +2,6 @@ from math import floor
 import random
 import time
 from typing import Type
-from xxlimited import new
 import requests
 from bs4 import BeautifulSoup
 from tqdm import tqdm
@@ -12,9 +11,9 @@ class ScrapingUsedCarDataService:
     def __init__(self) -> None:
         pass
 
-    random_seconds = random.uniform(0.234, 1.000)
-
     def init_BeautifulSoup(self, url: str):
+        random_seconds = random.uniform(0.5, 1.5)
+        time.sleep(random_seconds)
         res = requests.get(url)
         res.encoding = res.apparent_encoding
         return BeautifulSoup(res.text, 'html.parser')
@@ -40,40 +39,62 @@ class ScrapingUsedCarDataService:
         ### テスト用 ###
         # overview_url_length = 3
 
+        ### さらに分割してページを取得するためにrangeを指定する ###
+        # start_range, end_range = 0, 500 -> doing
+        # start_range, end_range = 501, 1000
+        # start_range, end_range = 1001, 1500
+        start_range, end_range = 1501, 2000
+        # start_range, end_range = 2001, 2500
+        # start_range, end_range = 2501, 3000
+        # start_range, end_range = 3001, 3500 -> done
+        # start_range, end_range = 0, overview_url_length
+
         for i in range(overview_url_length):
-            url_index = i + 2
+            if start_range <= i and i <= end_range:
+                url_index = i + 2
 
-            ### 全軽自動車取得用 ###
-            # current_url = f'https://www.goo-net.com/usedcar/bodytype-KEI/index-{url_index}.html'
+                ### 全軽自動車取得用 ###
+                current_url = f'https://www.goo-net.com/usedcar/bodytype-KEI/index-{url_index}.html'
 
-            # ek-ワゴン
-            # ek-カスタム
-            # ek-クロス
-            # ek-スペース
-            # ek-スペースカスタム
-            # ek-クロススペース
-            ### brand-MITSUBISHI/car-EK_WAGON only ###
-            current_url = f'https://www.goo-net.com/usedcar/brand-MITSUBISHI/car-EK_WAGON/index-{url_index}.html'
+                ### brand-MITSUBISHI/car-EK_WAGON only ###
+                # current_url = f'https://www.goo-net.com/usedcar/brand-MITSUBISHI/car-EK_WAGON/index-{url_index}.html'
+                # ek-カスタム
+                # current_url = f'https://www.goo-net.com/usedcar/brand-MITSUBISHI/car-EK_CUSTOM/index-{url_index}.html'
+                # ek-クロス
+                # current_url = f'https://www.goo-net.com/usedcar/brand-MITSUBISHI/car-EK_X/index-{url_index}.html'
+                # ek-スペース
+                # current_url = f'https://www.goo-net.com/usedcar/brand-MITSUBISHI/car-EK_SPACE/index-{url_index}.html'
+                # ek-スペースカスタム
+                # current_url = f'https://www.goo-net.com/usedcar/brand-MITSUBISHI/car-EK_SPACE_CUSTOM/index-{url_index}.html'
+                # ek-クロススペース
+                # current_url = f'https://www.goo-net.com/usedcar/brand-MITSUBISHI/car-EK_X_SPACE/index-{url_index}.html'
+                # ek-スポーツ
+                # current_url = f'https://www.goo-net.com/usedcar/brand-MITSUBISHI/car-EK_SPORT/index-{url_index}.html'
 
-            overview_url_list.append(current_url)
+                overview_url_list.append(current_url)
 
         detail_page_url_list = []
         for overview_url in (tqdm(overview_url_list)):
-            random_seconds = random.uniform(0.234, 1.000)
-            time.sleep(random_seconds)
             cu_bs_res = ScrapingUsedCarDataService.init_BeautifulSoup(
                 self, url=overview_url
             )
 
-            detail_page_url_list_html = cu_bs_res.find_all(
-                'a', {'data-link-list': 'list_summary'}
+            data_wrapper_list_html = cu_bs_res.find_all(
+                'div', {'class': 'data-wrapper'}
             )
 
             for j in range(50):
-                detail_page_a_tag = detail_page_url_list_html[j]
-                detail_page_url = 'https://www.goo-net.com' + \
-                    detail_page_a_tag.get('href')
-                detail_page_url_list.append(detail_page_url)
+                if j < len(data_wrapper_list_html)-1:
+                    data_wrapper_html = data_wrapper_list_html[j]
+                    h3_html = data_wrapper_html.find('h3')
+                    detail_page_href = h3_html.find('a').get('href')
+                    is_gookantei = data_wrapper_html.find(
+                        'dd', {'class': 'gookantei02'}
+                    )
+                    # Goo鑑定があれば詳細ページURLを取得する
+                    if is_gookantei != None:
+                        detail_page_url = 'https://www.goo-net.com' + detail_page_href
+                        detail_page_url_list.append(detail_page_url)
 
         return detail_page_url_list
 
@@ -82,10 +103,8 @@ class ScrapingUsedCarDataService:
             self, url=detail_url
         )
 
-        # find_allにて仮に該当のものがなかったら[]で返される　
-
         # 価格を取得
-        price_text_list = self.get_price_text_list(bs_res)
+        price_text_list = self.get_price_text_list(bs_res, detail_url)
         price_text_list.insert(0, detail_url)
 
         ### 車両詳細を取得 ###
@@ -103,14 +122,17 @@ class ScrapingUsedCarDataService:
         # return {'price_text_dict': price_text_dict, 'status_block_list': status_block_list, 'after_service_dict': after_service_dict, 'goo_kantei_hyouka_dict': goo_kantei_hyouka_dict}
         return price_text_list + status_block_list + after_service_list + goo_kantei_hyouka_list
 
-    def get_price_text_list(self, bs_res: BeautifulSoup):
+    def get_price_text_list(self, bs_res: BeautifulSoup, url: str):
         # 万円が入っていたら順番に取得(0->本体価格,1->支払総額)
-        all_price_text_list = bs_res.find(
-            'table', {'class': 'mainData'}
-        ).get_text().split()
+        price_html_list = bs_res.find('table', {'class': 'mainData'})
+        if price_html_list == None:
+            print('detail url: ', url)
+            return []
+
+        price_text_list = price_html_list.get_text().split()
+
         res_list = []
-        isBodyPrice = False
-        for price_text in all_price_text_list:
+        for price_text in price_text_list:
             if '万円' in price_text:
                 res_list.append(price_text)
 
@@ -131,7 +153,7 @@ class ScrapingUsedCarDataService:
                 # status_list_html[0~2]は車両の基本情報
                 status_block_title.append(status_block[0])
                 new_status_block = [
-                    item for item in status_block[1:] if '装備略号／用語解説' not in item and '※新車時のカタログデータとなります。実際とは異なる場合がございますので、詳細は販売店にご確認ください。'not in item and 'カタログで車種情報を詳しく見る' not in item
+                    item for item in status_block[1:] if '装備略号／用語解説' not in item and '※新車時のカタログデータとなります。実際とは異なる場合がございますので、詳細は販売店にご確認ください。'not in item and 'カタログで車種情報を詳しく見る' not in item and '内燃機関へ空気を強制的に送り込む装置。ターボ、スーパーチャージャーなどが該当' not in item
                 ]
 
                 for j, status in enumerate(new_status_block):
@@ -196,11 +218,25 @@ class ScrapingUsedCarDataService:
         quality_rank_1_list = goo_kantei_hyouka_html.find_all(
             'span', {'class': 'qualityRank1'}
         )
-        quality_rank_1_list = [item.get_text() for item in quality_rank_1_list]
-
         quality_rank_2_list = goo_kantei_hyouka_html.find_all(
             'span', {'class': 'qualityRank2'}
         )
-        quality_rank_2_list = [item.get_text() for item in quality_rank_2_list]
+        res_list = []
+        if quality_rank_1_list == [] or quality_rank_2_list == []:
+            return []
+        else:
+            quality_rank_1_list = [
+                item.get_text() for item in quality_rank_1_list
+            ]
+            quality_rank_2_list = [
+                item.get_text() for item in quality_rank_2_list
+            ]
 
-        return [quality_rank_1_list[0], quality_rank_1_list[1], quality_rank_2_list[0], quality_rank_2_list[1]]
+            res_list = [
+                quality_rank_1_list[0],
+                quality_rank_1_list[1],
+                quality_rank_2_list[0],
+                quality_rank_2_list[1],
+            ]
+
+        return res_list

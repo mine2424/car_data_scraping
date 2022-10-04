@@ -1,5 +1,3 @@
-
-from turtle import color
 from typing import Dict, List
 
 from constants.openpyxl_constants import OpenPyxlConstants

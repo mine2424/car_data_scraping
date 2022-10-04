@@ -12,6 +12,7 @@ class OpenpyxlService:
         self.excelFile = ''
         self.max_col = 1
         self.max_row = 2
+        self.rows = None
 
     def add_max_col(self):
         self.max_col += 1
@@ -29,6 +30,15 @@ class OpenpyxlService:
         initializedSheet.save(self.excelFile)
         self.book = load_workbook(self.excelFile)
         self.sheet = self.book.worksheets[0]
+        return self.sheet
+
+    def openpyxl(self, fileName: str, sheet_index: int):
+        if sheet_index is None:
+            print('sheet_indexを入力してください')
+            return
+        self.excelFile = f'../data/{fileName}.xlsx'
+        self.book = load_workbook(self.excelFile)
+        self.sheet = self.book.worksheets[sheet_index]
         return self.sheet
 
     def save_sheet(self, fileName: str = ''):
@@ -65,6 +75,29 @@ class OpenpyxlService:
         self.add_max_row()
         self.save_sheet()
 
+    def add_data_in_exit_file(self, col_index: int, row_index: int, val):
+        self.sheet.cell(
+            row=row_index, column=col_index
+        ).value = val
+        self.save_sheet()
+
     def remove_space_col(self):
         self.sheet.delete_cols(5)
         self.save_sheet()
+
+    def get_colored_cell_index_list(self):
+        index_list = []
+        self.rows = self.sheet.rows
+        for row in self.rows:
+            is_colored = False
+            for val in row:
+                if 'FF92D050' == val.fill.fgColor.rgb:
+                    is_colored = True
+            if is_colored:
+                # print(row[0].row)
+                index_list.append(row[0].row)
+
+        return index_list
+
+    def get_max_row(self):
+        self.max_row = self.sheet.max_row
