@@ -40,12 +40,12 @@ class ScrapingUsedCarDataService:
         # overview_url_length = 3
 
         ### さらに分割してページを取得するためにrangeを指定する ###
-        # start_range, end_range = 0, 500 -> doing
-        # start_range, end_range = 501, 1000
-        # start_range, end_range = 1001, 1500
-        start_range, end_range = 1501, 2000
-        # start_range, end_range = 2001, 2500
-        # start_range, end_range = 2501, 3000
+        # start_range, end_range = 0, 500 -> doing lab_desktop
+        # start_range, end_range = 501, 1000  # -> doing left_1
+        # start_range, end_range = 1001, 1500  # -> doing left_2
+        # start_range, end_range = 1501, 2000  # -> doing left_3
+        start_range, end_range = 2001, 2500  # -> doing left_4
+        # start_range, end_range = 2501, 3000 -> done
         # start_range, end_range = 3001, 3500 -> done
         # start_range, end_range = 0, overview_url_length
 
@@ -113,11 +113,11 @@ class ScrapingUsedCarDataService:
 
         # アフターサービスを取得
         # data: {'補償': 1, '法定整備': 1}
-        after_service_list = self.get_after_service_list(bs_res=bs_res)
+        after_service_list = self.get_after_service_list(bs_res, detail_url)
 
         # goo鑑定を取得
         # data: {'外装': '4', '内装': '4', '機関': '正常', '修復歴': '無し'}
-        goo_kantei_hyouka_list = self.get_goo_kantei_hyouka_list(bs_res=bs_res)
+        goo_kantei_hyouka_list = self.get_goo_kantei_hyouka_list(bs_res)
 
         # return {'price_text_dict': price_text_dict, 'status_block_list': status_block_list, 'after_service_dict': after_service_dict, 'goo_kantei_hyouka_dict': goo_kantei_hyouka_dict}
         return price_text_list + status_block_list + after_service_list + goo_kantei_hyouka_list
@@ -189,11 +189,14 @@ class ScrapingUsedCarDataService:
         else:
             return default
 
-    def get_after_service_list(self, bs_res: BeautifulSoup):
+    def get_after_service_list(self, bs_res: BeautifulSoup, url: str):
         # 補償の有無で判断(ダミー)、整備込みかどうか
         after_service_html = bs_res.find(
             'div', {'class': 'afterServiceBlock'}
         )
+        if after_service_html == None:
+            print('(get_after_service_list) detail url: ', url)
+            return []
         after_service_list = after_service_html.find(
             'table').get_text().split()
 
@@ -214,6 +217,9 @@ class ScrapingUsedCarDataService:
         goo_kantei_hyouka_html = bs_res.find(
             'div', {'class': 'gooKanteiHyoukaTable'}
         )
+
+        if goo_kantei_hyouka_html == None:
+            return []
 
         quality_rank_1_list = goo_kantei_hyouka_html.find_all(
             'span', {'class': 'qualityRank1'}
