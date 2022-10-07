@@ -25,6 +25,8 @@ def main():
         run_scraping_all_used_light_car_data()
     elif argv == 2:
         judge_cell_color()
+    elif argv == 3:
+        insert_model_and_maker_in_used()
 
 
 def run_scraping_all_light_car_catalog_data():
@@ -207,7 +209,7 @@ def run_scraping_all_used_light_car_data():
     # openpyxl_service.init_openpyxl(fileName='all_used_car_data_by_ek_space')
     # openpyxl_service.init_openpyxl(fileName='all_used_car_data_by_ek_x_space')
     # openpyxl_service.init_openpyxl(fileName='all_used_car_data_by_ek_sport')
-    openpyxl_service.init_openpyxl(fileName='all_used_light_car_data_2500')
+    openpyxl_service.init_openpyxl(fileName='all_used_light_car_data_500')
 
     openpyxl_service.create_used_car_title()
 
@@ -243,6 +245,21 @@ def judge_cell_color():
             openpyxl_service.add_data_in_exit_file(28, row, 0)
 
         is_colored = False
+
+
+def insert_model_and_maker_in_used():
+    openpyxlServiceinstance = OpenpyxlService()
+    sheet = openpyxlServiceinstance.openpyxl('used_light_car_2000', 0)
+    rows = sheet.rows
+    scraping_instance = ScrapingUsedCarDataService()
+    scraping_instance.get_model_and_maker(rows)
+
+    # valueを縦回し
+    # for row in rows:
+    #     print(row[0].value)
+    # valueを横回し
+    # for val in row:
+    #     print(val.value)
 
 
 if __name__ == '__main__':

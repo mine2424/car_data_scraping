@@ -40,11 +40,11 @@ class ScrapingUsedCarDataService:
         # overview_url_length = 3
 
         ### さらに分割してページを取得するためにrangeを指定する ###
-        # start_range, end_range = 0, 500 -> doing lab_desktop
+        start_range, end_range = 0, 500  # -> doing lab_desktop and doing left_3
         # start_range, end_range = 501, 1000  # -> doing left_1
         # start_range, end_range = 1001, 1500  # -> doing left_2
-        # start_range, end_range = 1501, 2000  # -> doing left_3
-        start_range, end_range = 2001, 2500  # -> doing left_4
+        # start_range, end_range = 1501, 2000  # -> done
+        # start_range, end_range = 2001, 2500  # -> done
         # start_range, end_range = 2501, 3000 -> done
         # start_range, end_range = 3001, 3500 -> done
         # start_range, end_range = 0, overview_url_length
@@ -246,3 +246,14 @@ class ScrapingUsedCarDataService:
             ]
 
         return res_list
+
+    def get_model_and_maker(self, rows):
+        for i, row in enumerate(rows):
+            if i > 0 and i < 3:
+                url = row[0].value
+                bs_res = self.init_BeautifulSoup(url)
+                maker = bs_res.find(
+                    'span', {'class': 'mainTit'}).get_text().replace(' ', '')
+                model = bs_res.find(
+                    'p', {'class': 'tit'}).get_text().replace(' ', '')[len(maker)+1:]
+                # TODO: excelに書き込みする
