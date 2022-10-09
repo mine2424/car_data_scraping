@@ -11,6 +11,8 @@ from tqdm import tqdm
 import time
 import random
 import sys
+from concurrent.futures import ThreadPoolExecutor
+
 
 from services.scraping_used_car_data_service import ScrapingUsedCarDataService
 
@@ -209,7 +211,7 @@ def run_scraping_all_used_light_car_data():
     # openpyxl_service.init_openpyxl(fileName='all_used_car_data_by_ek_space')
     # openpyxl_service.init_openpyxl(fileName='all_used_car_data_by_ek_x_space')
     # openpyxl_service.init_openpyxl(fileName='all_used_car_data_by_ek_sport')
-    openpyxl_service.init_openpyxl(fileName='all_used_light_car_data_500')
+    openpyxl_service.init_openpyxl(fileName='used_light_car_1000')
 
     openpyxl_service.create_used_car_title()
 
@@ -247,19 +249,44 @@ def judge_cell_color():
         is_colored = False
 
 
+def add_model_maker_in_excel(instance, i: int, model_and_maker):
+    instance.add_data_in_exit_file(
+        1, i, model_and_maker['maker']
+    )
+    instance.add_data_in_exit_file(
+        2, i, model_and_maker['model']
+    )
+
+
 def insert_model_and_maker_in_used():
     openpyxlServiceinstance = OpenpyxlService()
-    sheet = openpyxlServiceinstance.openpyxl('used_light_car_2000', 0)
+    sheet = openpyxlServiceinstance.openpyxl('all_used_car_final(edit)', 0)
     rows = sheet.rows
+    max_column = sheet.max_column
     scraping_instance = ScrapingUsedCarDataService()
-    scraping_instance.get_model_and_maker(rows)
 
-    # valueを縦回し
-    # for row in rows:
-    #     print(row[0].value)
-    # valueを横回し
-    # for val in row:
-    #     print(val.value)
+    # TODO: rowsを切り分けて、複数処理をする
+    rows = list(rows)[0:5000]
+    # rows = list(rows)[5001:10000]
+    # rows = list(rows)[10001:15000]
+    # rows = list(rows)[150001:20000]
+    # rows = list(rows)[200001:25000]
+    # rows = list(rows)[250001:30000]
+    # rows = list(rows)[300001:33347]
+
+    model_and_maker_list = scraping_instance.get_model_and_maker(rows)
+
+    with ThreadPoolExecutor(max_workers=20) as executor:
+        for i, model_and_maker in enumerate(tqdm(model_and_maker_list)):
+            i = i + 2
+
+            # 2~ページはindexを追加すること
+            # TODO: 検証を必ずする（テストデータで）
+            # i = i + 5001
+
+            executor.submit(
+                add_model_maker_in_excel, openpyxlServiceinstance, i, model_and_maker
+            )
 
 
 if __name__ == '__main__':

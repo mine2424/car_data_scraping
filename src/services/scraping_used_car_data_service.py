@@ -5,16 +5,39 @@ from typing import Type
 import requests
 from bs4 import BeautifulSoup
 from tqdm import tqdm
+from urllib3 import Retry
+from requests.adapters import HTTPAdapter
+from concurrent.futures import ThreadPoolExecutor
 
 
 class ScrapingUsedCarDataService:
     def __init__(self) -> None:
         pass
 
+    timeout_count = 0
+
     def init_BeautifulSoup(self, url: str):
-        random_seconds = random.uniform(0.5, 1.5)
+        random_seconds = random.uniform(0.001, 0.01)
         time.sleep(random_seconds)
-        res = requests.get(url)
+
+        session = requests.Session()
+
+        retries = Retry(total=5,
+                        backoff_factor=1,
+                        status_forcelist=[500, 502, 503, 504])
+
+        session.mount("https://", HTTPAdapter(max_retries=retries))
+
+        try:
+            # timeout対策 -> https://blog.cosnomi.com/posts/1259/
+            # session追加 -> https://qiita.com/azumagoro/items/3402facf0bcfecea0f06
+            res = session.get(url, timeout=30)
+        except (requests.exceptions.Timeout, requests.Timeout):
+            print(f'error res: {res}')
+            if self.timeout_count < 4:
+                self.init_BeautifulSoup(url)
+                self.timeout_count += 1
+
         res.encoding = res.apparent_encoding
         return BeautifulSoup(res.text, 'html.parser')
 
@@ -40,8 +63,8 @@ class ScrapingUsedCarDataService:
         # overview_url_length = 3
 
         ### さらに分割してページを取得するためにrangeを指定する ###
-        start_range, end_range = 0, 500  # -> doing lab_desktop and doing left_3
-        # start_range, end_range = 501, 1000  # -> doing left_1
+        # start_range, end_range = 0, 500  # -> doing lab_desktop and doing left_3
+        start_range, end_range = 501, 1000  # -> doing left_1
         # start_range, end_range = 1001, 1500  # -> doing left_2
         # start_range, end_range = 1501, 2000  # -> done
         # start_range, end_range = 2001, 2500  # -> done
@@ -247,13 +270,29 @@ class ScrapingUsedCarDataService:
 
         return res_list
 
+        res_list = []
+
+    def _get_mm_html(self, row):
+        url = row[2].value
+        bs_res = self.init_BeautifulSoup(url)
+
+        maker_html = bs_res.find('span', {'class': 'mainTit'})
+        model_html = bs_res.find('p', {'class': 'tit'})
+        if maker_html == None or model_html == None:
+            return {'model': '', 'maker': ''}
+
+        maker = maker_html.get_text().replace(' ', '')
+        model = model_html.get_text().replace(' ', '')[
+            len(maker)+1:]
+        return {'model': model, 'maker': maker}
+
     def get_model_and_maker(self, rows):
-        for i, row in enumerate(rows):
-            if i > 0 and i < 3:
-                url = row[0].value
-                bs_res = self.init_BeautifulSoup(url)
-                maker = bs_res.find(
-                    'span', {'class': 'mainTit'}).get_text().replace(' ', '')
-                model = bs_res.find(
-                    'p', {'class': 'tit'}).get_text().replace(' ', '')[len(maker)+1:]
-                # TODO: excelに書き込みする
+        res_list = []
+        with ThreadPoolExecutor(max_workers=20) as executor:
+            for i, row in enumerate(tqdm(rows)):
+                if i > 0:
+                    model_maker_dict = executor.submit(
+                        self._get_mm_html, row).result()
+                    res_list.append(model_maker_dict)
+
+        return res_list
