@@ -294,5 +294,7 @@ class ScrapingUsedCarDataService:
                     model_maker_dict = executor.submit(
                         self._get_mm_html, row).result()
                     res_list.append(model_maker_dict)
+            for process in executor._processes.values():
+                process.kill()
 
         return res_list
