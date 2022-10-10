@@ -262,13 +262,13 @@ def insert_model_and_maker_in_used():
     openpyxlServiceinstance = OpenpyxlService()
 
     # 新しく作成していくall_used_car_final(edit)_2的な？
-    # sheet = openpyxlServiceinstance.openpyxl('all_used_car_final(edit)', 0)
+    sheet = openpyxlServiceinstance.openpyxl('all_used_car_final(edit)', 0)
     # sheet = openpyxlServiceinstance.openpyxl('all_used_car_final(edit)_2', 0)
     # sheet = openpyxlServiceinstance.openpyxl('all_used_car_final(edit)_3', 0)
     # sheet = openpyxlServiceinstance.openpyxl('all_used_car_final(edit)_4', 0)
     # sheet = openpyxlServiceinstance.openpyxl('all_used_car_final(edit)_5', 0)
     # sheet = openpyxlServiceinstance.openpyxl('all_used_car_final(edit)_6', 0)
-    sheet = openpyxlServiceinstance.openpyxl('all_used_car_final(edit)_7', 0)
+    # sheet = openpyxlServiceinstance.openpyxl('all_used_car_final(edit)_7', 0)
 
     rows = sheet.rows
     max_column = sheet.max_column
@@ -276,13 +276,13 @@ def insert_model_and_maker_in_used():
 
     # TODO: rowsを切り分けて、複数処理をする
     # rows = list(rows)
-    # rows = list(rows)[0:5000]
+    rows = list(rows)[0:5000]
     # rows = list(rows)[5001:10000]
     # rows = list(rows)[10001:15000]
     # rows = list(rows)[15001:20000]
     # rows = list(rows)[20001:25000]
     # rows = list(rows)[25001:30000]
-    rows = list(rows)[30001:33347]
+    # rows = list(rows)[30001:33347]
 
     model_and_maker_list = scraping_instance.get_model_and_maker(rows)
 
@@ -297,8 +297,6 @@ def insert_model_and_maker_in_used():
             executor.submit(
                 add_model_maker_in_excel, openpyxlServiceinstance, i, model_and_maker
             )
-        for process in executor._processes.values():
-            process.kill()
 
 
 if __name__ == '__main__':
