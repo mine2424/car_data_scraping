@@ -7,7 +7,8 @@ from bs4 import BeautifulSoup
 from tqdm import tqdm
 from urllib3 import Retry
 from requests.adapters import HTTPAdapter
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from pandas import DataFrame
 
 
 class ScrapingUsedCarDataService:
@@ -39,7 +40,7 @@ class ScrapingUsedCarDataService:
                 self.timeout_count += 1
 
         res.encoding = res.apparent_encoding
-        return BeautifulSoup(res.text, 'html.parser')
+        return BeautifulSoup(res.content, 'lxml')
 
     def get_all_used_car_overview_url_list(self, url: str):
         bs_res = ScrapingUsedCarDataService.init_BeautifulSoup(
@@ -286,15 +287,23 @@ class ScrapingUsedCarDataService:
             len(maker)+1:]
         return {'model': model, 'maker': maker}
 
-    def get_model_and_maker(self, rows):
-        res_list = []
-        with ThreadPoolExecutor(max_workers=20) as executor:
-            for i, row in enumerate(tqdm(rows)):
-                if i > 0:
-                    model_maker_dict = executor.submit(
-                        self._get_mm_html, row).result()
-                    res_list.append(model_maker_dict)
-            for process in executor._processes.values():
-                process.kill()
+    def _get_mm_html_for_pd(self, data: str):
+        url = data[2]
+        bs_res = self.init_BeautifulSoup(url)
 
-        return res_list
+        maker_html = bs_res.find('span', {'class': 'mainTit'})
+        model_html = bs_res.find('p', {'class': 'tit'})
+        if maker_html == None or model_html == None:
+            # print(f'url:{url}, empty')
+            return ['', '']
+
+        maker = maker_html.get_text().replace(' ', '')
+        model = model_html.get_text().replace(' ', '')[len(maker)+1:].strip()
+        # print(f'url:{url}, maker: {maker}, model: {model}')
+
+        return [maker, model]
+
+    def get_model_and_maker(self, list_data: list):
+        with ProcessPoolExecutor() as executor:
+            # INFO: 注意点として、純粋なfor文を使うとそんなに効果がないので必ずexecutor.mapを使って処理しよう！
+            return list(tqdm(executor.map(self._get_mm_html_for_pd, list_data), total=len(list_data)))

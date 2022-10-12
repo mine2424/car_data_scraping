@@ -3,20 +3,25 @@
 # from src.services.scraping_data_service import ScrapingDataService
 # from src.services.openpyxl_service import OpenpyxlService
 
+import codecs
 from constants.openpyxl_constants import OpenPyxlConstants
 from services.scraping_data_service import ScrapingDataService
 from services.openpyxl_service import OpenpyxlService
+from services.scraping_used_car_data_service import ScrapingUsedCarDataService
 
 from tqdm import tqdm
 import time
 import random
 import sys
-from concurrent.futures import ThreadPoolExecutor
-
-
-from services.scraping_used_car_data_service import ScrapingUsedCarDataService
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+import pandas as pd
 
 print('this is goo car scraping!!!')
+
+
+kColumns = [
+    'メーカー', 'モデル名', 'url', '本体価格', '支払価格', '走行距離', '登録済未使用車', '禁煙車', '車検', '年式（初度登録）', '排気量', '乗車定員', '駆動方式', '燃料', 'ドア', 'ミッション', '過給器', '車体色', '車台番号下3桁', 'その他仕様', '全体のサイズ', '荷台寸法', '全長×全幅×全高', '車両重量', '駆動形式', '使用燃料', '最高出力', 'WLTCモード燃費', 'JC08モード燃費', '10/15モード燃費', '保証', '法定整備', '外装', '内装', '修復歴'
+]
 
 
 def main():
@@ -29,6 +34,8 @@ def main():
         judge_cell_color()
     elif argv == 3:
         insert_model_and_maker_in_used()
+    elif argv == 4:
+        convert_data_variable()
 
 
 def run_scraping_all_light_car_catalog_data():
@@ -259,45 +266,87 @@ def add_model_maker_in_excel(instance, i: int, model_and_maker):
 
 
 def insert_model_and_maker_in_used():
-    openpyxlServiceinstance = OpenpyxlService()
+    # readn csv cncode error -> https://qiita.com/niwaringo/items/d2a30e04e08da8eaa643
+    # with codecs.open('../data/all_used_car_final(edit).csv', "r", "Shift-JIS", "ignore") as file:
+    # with codecs.open('../data/f_output.csv', "r", "ignore") as file:
+    df = pd.read_csv(
+        '../data/output.csv',
+        keep_default_na=False,
+        low_memory=True,
+        usecols=['メーカー', 'モデル名', 'url', '本体価格', '支払価格', '走行距離', '登録済未使用車', '禁煙車', '車検',
+                 '年式（初度登録）', '排気量', '乗車定員', '駆動方式', '燃料', 'ドア', 'ミッション', '過給器', '車体色',
+                 '車台番号下3桁', 'その他仕様', '全体のサイズ', '荷台寸法', '全長×全幅×全高', '車両重量', '駆動形式',
+                 '使用燃料', '最高出力', 'WLTCモード燃費', 'JC08モード燃費', '10/15モード燃費', '保証', '法定整備',
+                 '外装', '内装', '修復歴']
+    )
 
-    # 新しく作成していくall_used_car_final(edit)_2的な？
-    sheet = openpyxlServiceinstance.openpyxl('all_used_car_final(edit)', 0)
-    # sheet = openpyxlServiceinstance.openpyxl('all_used_car_final(edit)_2', 0)
-    # sheet = openpyxlServiceinstance.openpyxl('all_used_car_final(edit)_3', 0)
-    # sheet = openpyxlServiceinstance.openpyxl('all_used_car_final(edit)_4', 0)
-    # sheet = openpyxlServiceinstance.openpyxl('all_used_car_final(edit)_5', 0)
-    # sheet = openpyxlServiceinstance.openpyxl('all_used_car_final(edit)_6', 0)
-    # sheet = openpyxlServiceinstance.openpyxl('all_used_car_final(edit)_7', 0)
+    list_data = df.to_numpy().tolist()
 
-    rows = sheet.rows
-    max_column = sheet.max_column
     scraping_instance = ScrapingUsedCarDataService()
+    model_and_maker_list = scraping_instance.get_model_and_maker(list_data)
 
-    # TODO: rowsを切り分けて、複数処理をする
-    # rows = list(rows)
-    rows = list(rows)[0:5000]
-    # rows = list(rows)[5001:10000]
-    # rows = list(rows)[10001:15000]
-    # rows = list(rows)[15001:20000]
-    # rows = list(rows)[20001:25000]
-    # rows = list(rows)[25001:30000]
-    # rows = list(rows)[30001:33347]
+    for i, data in enumerate(list_data):
+        list_data[i][0] = model_and_maker_list[i][0]
+        list_data[i][1] = model_and_maker_list[i][1]
 
-    model_and_maker_list = scraping_instance.get_model_and_maker(rows)
+    new_df = pd.DataFrame(list_data, columns=kColumns)
+    new_df.to_csv('../data/output_fixed_2.csv')
 
-    with ThreadPoolExecutor(max_workers=20) as executor:
-        for i, model_and_maker in enumerate(tqdm(model_and_maker_list)):
-            i = i + 2
 
-            # 2~ページはindexを追加すること
-            # TODO: 検証を必ずする（テストデータで）
-            # i = i + 5001
+def convert_data_variable():
+    with codecs.open('../data/all_used_car_final.csv', "r", "Shift-JIS", "ignore") as file:
+        df = pd.read_csv(
+            file,
+            keep_default_na=False,
+            low_memory=False,
+            usecols=kColumns
+        )
 
-            executor.submit(
-                add_model_maker_in_excel, openpyxlServiceinstance, i, model_and_maker
-            )
+    df2 = df.copy()
+
+    df2.iloc[:, 3] = df2.iloc[:, 3].str.replace(
+        '万円', '').replace('--', '0').astype(float)
+    df2.iloc[:, 4] = df2.iloc[:, 4].str.replace(
+        '万円', '').replace('--', '0').astype(float)
+    df2.iloc[:, 5] = df2.iloc[:, 5].str.replace('万km', '')
+
+    df2.iloc[:, 26] = df2.iloc[:, 26].str[:2]
+    df2.iloc[:, 27] = df2.iloc[:, 27].str.replace(
+        'km/リットル', '').replace('-', '')
+    df2.iloc[:, 28] = df2.iloc[:, 28].str.replace(
+        'km/リットル', '').replace('-', '')
+    df2.iloc[:, 29] = df2.iloc[:, 29].str.replace(
+        'km/リットル', '').replace('-', '')
+
+    df2.loc[:, '本体価格'] = pd.to_numeric(df2['本体価格'], errors='coerce')
+    df2.loc[:, '本体価格'] *= 10000
+    df2.loc[:, '支払価格'] = pd.to_numeric(df2['支払価格'], errors='coerce')
+    df2.loc[:, '支払価格'] *= 10000
+    df2.iloc[:, 5] = pd.to_numeric(df2['走行距離'], errors='coerce')
+    df2.iloc[:, 5] *= 10000
+    # TODO: 実質価格の作成
+
+    print(df2)
+
+    df2.to_csv('../data/output.csv')
 
 
 if __name__ == '__main__':
     main()
+
+
+# 2007	1
+# 2008	1.006289308
+# 2009	1.006289308
+# 2010	0.990566038
+# 2011	0.98951782
+# 2012	0.988469602
+# 2013	0.985324948
+# 2014	0.997903564
+# 2015	1.024109015
+# 2016	1.025157233
+# 2017	1.029350105
+# 2018	1.042976939
+# 2019	1.045073375
+# 2020	1.051362683
+# 2021	1.047169811
